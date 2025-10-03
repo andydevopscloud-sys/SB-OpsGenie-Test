@@ -1,8 +1,6 @@
 # SB-OpsGenie-Test
-Repo for Simply Business test script for on-call alerting system status check with OpsGenie and Slack.
 
-Section 3: On-call alerting system status check
-On-call alerting system status check
+On-call alerting system status check.
 
 You are tasked with retrieving the current system status of on-call alerting system, OpsGenie, via Powershell scripting.
 
