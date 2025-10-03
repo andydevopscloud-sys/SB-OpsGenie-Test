@@ -4,9 +4,9 @@
 
 You are tasked with retrieving the current system status of on-call alerting system, OpsGenie, via Powershell scripting.
 
-**Case: ** Provide a mechanism to check OpsGenie's current system status and retrieve information on recent incidents. This data will help quickly assess the health of the OpsGenie service and should be shared with the team via Slack.
+**Case**: Provide a mechanism to check OpsGenie's current system status and retrieve information on recent incidents. This data will help quickly assess the health of the OpsGenie service and should be shared with the team via Slack.
 
-**Your task is to write a script that performs the following actions: **
+**Your task is to write a script that performs the following actions**:
 
 1. **Retrieve Overall Service Status:** Fetch the overall service status of OpsGenie. 
 2. **Retrieve Recent Incidents:** Obtain the 3 most recent incidents. 
