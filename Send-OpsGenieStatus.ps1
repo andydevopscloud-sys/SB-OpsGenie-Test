@@ -2,7 +2,7 @@ param (
   [string]$SlackWebhookUrl = 'https://webhook.site/'
 )
 
-# 1. Retrieve overall service status
+# 1. Retrieve overall service status of OpsGenie using API call
 $statusUrl    = 'http://status.opsgenie.com/api/v2/status.json'
 try {
   $serviceStatus = (Invoke-RestMethod -Uri $statusUrl -ErrorAction Stop).status.description
@@ -11,7 +11,7 @@ try {
   exit 1
 }
 
-# 2. Retrieve Recent Incidents
+# 2. Retrieve recent incidents from the OpsGenie API response
 $incidentsUrl = 'http://status.opsgenie.com/api/v2/incidents.json'
 try {
   $recentIncidents = (Invoke-RestMethod -Uri $incidentsUrl).incidents `
@@ -23,7 +23,8 @@ try {
 }
 
 # 3. Format Output (JSON payload)
-# 3.1 Status JASON wrapped into hashtable and serialized two levels deep
+#
+# 3.1 Status JSON wrapped into hashtable and serialised two levels deep
 $statusObj    = @{ status = @{ description = $serviceStatus } }
 $statusJson   = $statusObj    | ConvertTo-Json -Depth 2
 
@@ -41,30 +42,64 @@ $incidentItems = $recentIncidents | ForEach-Object {
 $incidentsObj  = @{ incidents = $incidentItems }
 $incidentsJson = $incidentsObj | ConvertTo-Json -Depth 2
 
-# 3.4 Slack text output with headings and JSON
-$slackText = @"
-Overall System Status:
-
-$statusJson
-
-3 Most Recent Incidents:
-
-$incidentsJson
-"@.Trim()
-
 # 4. Send to Slack (via Webhook)
-# After adding $slackText above
-$payload = @{ text = $slackText } | ConvertTo-Json
+#
+# 4.1 Building Slack message using Block Kit JSON payload & Serialise nested structure into JSON 
+$payload = @{
+    blocks = @(
+        @{
+            type = "section"
+            text = @{
+                type = "mrkdwn"
+                text = "*Current system status*"
+            }
+        },
+        @{
+            type = "section"
+            text = @{
+                type = "mrkdwn"
+                text = "```$statusJson```"
+            }
+        },
+        @{
+            type = "section"
+            text = @{
+                type = "mrkdwn"
+                text = "*Last 3 Incidents*"
+            }
+        },
+        @{
+            type = "section"
+            text = @{
+                type = "mrkdwn"
+                text = "```$incidentsJson```"
+            }
+        }
+    )
+} 
 
+$jsonPayload = $payload | ConvertTo-Json -Depth 6
+
+# 4.2 Send to Slack using an incoming webhook URL in $SlackWebhookUrl
+# Prints a concise error, attempts to dump any HTTP response body for deeper diagnostics
 try {
-  Invoke-RestMethod `				# POST HTTP request details 
-    -Uri        $SlackWebhookUrl `
-    -Method     Post `
-    -ContentType 'application/json' `
-    -Body       ($payload | ConvertTo-Json)
+    Invoke-RestMethod `
+        -Uri        $SlackWebhookUrl `
+        -Method     Post `
+        -ContentType 'application/json' `
+        -Body       $jsonPayload `
+        -ErrorAction Stop
 
-  Write-Host "Notification sent successfully."
-} catch {
-  Write-Error "Failed to send to Slack: $_"
-  exit 1
+    Write-Host "Notification sent successfully."
+}
+catch {
+    Write-Error "Failed to send to Slack: $($_.Exception.Message)"
+    if ($_.Exception.Response) {
+        try {
+            $body = ($_.Exception.Response.GetResponseStream() | 
+                     New-Object System.IO.StreamReader).ReadToEnd()
+            if ($body) { Write-Error "Response body: $body" }
+        } catch {}
+    }
+    exit 1
 }
